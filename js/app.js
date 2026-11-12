@@ -190,8 +190,9 @@ Object.assign(ACT, {
     const c = DB.byId[d.id]; if (!c || c.c === "L") return;
     const n = deck.cards[c.i] || 0;
     if (!c.any && n >= 4) return toast("Max 4 copies of a card");
-    if (deckTotal(deck) >= 50) return toast("Deck is full — 50 cards");
+    const was = deckTotal(deck);
     editDeck(x => { x.cards[c.i] = n + 1; });
+    if (was === 50) toast("Now over 50 cards — that's fine while you build");
   },
   "deck-dec": d => editDeck(x => { const n = (x.cards[d.id] || 0) - 1; if (n > 0) x.cards[d.id] = n; else delete x.cards[d.id]; }),
   "own": d => { const n = +d.n; const deck = deckNow(); const shown = Math.min(S.owned[d.id] || 0, deck ? deck.cards[d.id] || 0 : 0);

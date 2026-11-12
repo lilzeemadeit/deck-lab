@@ -227,7 +227,7 @@ export function builderView() {
       <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
         <label class="sr" for="dn">Deck name</label><input id="dn" class="name" value="${esc(deck.name)}" data-change="deck-name">
         <span class="muted" style="font-size:14px;font-weight:700">${esc(L.n)} · ${L.i} · ${L.co.join(" / ")}</span></div>
-      <span style="font-size:30px;font-weight:900;margin-left:6px">${total}<span class="muted" style="font-size:16px"> / 50</span></span>
+      <span style="font-size:30px;font-weight:900;margin-left:6px;${total > 50 ? "color:#C0392B" : ""}">${total}<span class="muted" style="font-size:16px"> / 50</span></span>
       <div style="margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
         <div class="trackbox ${deck.track ? "on" : ""}"><button class="switch ${deck.track ? "on" : ""}" role="switch" aria-checked="${!!deck.track}" aria-label="Track my copies" data-act="track"><span></span></button>
           <span style="display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800">Track my copies</span><span class="muted" style="font-size:12.5px;font-weight:600">Optional · fills your Buy List</span></span></div>
@@ -236,6 +236,7 @@ export function builderView() {
           ${U.menu === "export" ? `<div class="glass popmenu" style="left:auto;right:0" data-stop="1"><button class="opt" data-act="export-deck" data-f="sim">Copy for deck sites / sims (4xOP01-016)</button><button class="opt" data-act="export-deck" data-f="text">Copy as plain text</button>${U.undoImport && U.undoImport.id === deck.id ? `<button class="opt" data-act="undo-import">Undo the last import</button>` : ""}<button class="opt" data-act="dup-deck">Duplicate deck</button><button class="opt" data-act="del-deck" style="color:#B8473F">Delete deck…</button></div>` : ""}</div>
       </div>
     </section>
+    ${total > 50 ? `<div class="warn" role="status" style="display:flex;align-items:center;gap:10px;background:rgba(253,226,222,0.95);border-color:#E9877B;color:#8A2A1F"><b style="font-size:18px">${total} cards</b><span>That's ${total - 50} over. Tournament decks need exactly 50, so take out ${total - 50} before you play it.</span></div>` : ""}
     ${issues.length ? `<div class="warn">Heads up: ${issues.slice(0, 4).map(esc).join(" · ")}${issues.length > 4 ? ` · +${issues.length - 4} more` : ""}</div>` : ""}
     <div class="row">
       ${poolColumn(deck, L)}
