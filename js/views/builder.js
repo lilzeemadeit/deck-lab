@@ -94,6 +94,10 @@ function glancePanel(deck) {
   </div>`;
 }
 
+function trackToggle(deck) {
+  return `<div class="trackbox ${deck.track ? "on" : ""}" style="align-self:flex-start"><button class="switch ${deck.track ? "on" : ""}" role="switch" aria-checked="${!!deck.track}" aria-label="Track my copies" data-act="track"><span></span></button>
+    <span style="display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800">Track my copies</span><span class="muted" style="font-size:12.5px;font-weight:600">Optional · mark cards you own and fill your Buy List</span></span></div>`;
+}
 function trackPanel(deck) {
   const total = deckTotal(deck);
   let have = 0; for (const [id, n] of entriesOf(deck)) have += Math.min(S.owned[id] || 0, n);
@@ -229,9 +233,7 @@ export function builderView() {
         <span class="muted" style="font-size:14px;font-weight:700">${esc(L.n)} · ${L.i} · ${L.co.join(" / ")}</span></div>
       <span style="font-size:30px;font-weight:900;margin-left:6px;${total > 50 ? "color:#C0392B" : ""}">${total}<span class="muted" style="font-size:16px"> / 50</span></span>
       <div style="margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:12px">
-        <div class="trackbox ${deck.track ? "on" : ""}"><button class="switch ${deck.track ? "on" : ""}" role="switch" aria-checked="${!!deck.track}" aria-label="Track my copies" data-act="track"><span></span></button>
-          <span style="display:flex;flex-direction:column"><span style="font-size:14.5px;font-weight:800">Track my copies</span><span class="muted" style="font-size:12.5px;font-weight:600">Optional · fills your Buy List</span></span></div>
-        <button class="btn btn-soft" data-act="import" data-into="${deck.id}">Import</button>
+        <button class="btn btn-blue" data-act="import" data-into="${deck.id}">Import deck</button>
         <div class="rel"><button class="btn btn-soft" data-act="menu" data-k="export" aria-expanded="${U.menu === "export"}">Export ${IC.caret}</button>
           ${U.menu === "export" ? `<div class="glass popmenu" style="left:auto;right:0" data-stop="1"><button class="opt" data-act="export-deck" data-f="sim">Copy for deck sites / sims (4xOP01-016)</button><button class="opt" data-act="export-deck" data-f="text">Copy as plain text</button>${U.undoImport && U.undoImport.id === deck.id ? `<button class="opt" data-act="undo-import">Undo the last import</button>` : ""}<button class="opt" data-act="dup-deck">Duplicate deck</button><button class="opt" data-act="del-deck" style="color:#B8473F">Delete deck…</button></div>` : ""}</div>
       </div>
@@ -242,7 +244,7 @@ export function builderView() {
       ${poolColumn(deck, L)}
       <section class="deckside" aria-label="Your deck">
         <nav class="field subtabs" aria-label="Deck views">${[["list", "List", "#/builder"], ["stats", "Stats", "#/builder/stats"], ["ideas", `Ideas <span class="beta">BETA</span>`, "#/builder/ideas"]].map(([k, l, h]) => `<a href="${h}" class="${sub === k ? "on" : ""}">${l}</a>`).join("")}</nav>
-        ${sub === "stats" ? statsTab(deck) : sub === "ideas" ? ideasTab(deck, L) : glancePanel(deck) + (deck.track ? trackPanel(deck) : "") + deckGrid(deck)}
+        ${sub === "stats" ? statsTab(deck) : sub === "ideas" ? ideasTab(deck, L) : glancePanel(deck) + trackToggle(deck) + (deck.track ? trackPanel(deck) : "") + deckGrid(deck)}
       </section>
     </div></main>`;
 }
