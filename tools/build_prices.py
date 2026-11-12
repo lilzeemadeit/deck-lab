@@ -64,7 +64,8 @@ for g in results(f"{BASE}/{cid}/groups"):
         found.setdefault(num, []).append({
             "variant": bool(VARIANT.search(name)),
             "reprint_group": bool(REPRINT_GROUP.search(gname)),
-            "home": num.split("-")[0] in gsets and not REPRINT_GROUP.search(gname),   # the card's own set (OP01 for OP01-001)
+            # the card's own set (OP01 for OP01-001), not its release-event / tournament copies
+            "home": num.split("-")[0] in gsets and not re.search(r"release event|tournament|anniversary", gname, re.I),
             "gid": gid, "name": name,
             "m": round(market, 2) if market else None,
             "l": round(p["lowPrice"], 2) if p.get("lowPrice") else None,
