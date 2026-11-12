@@ -304,6 +304,19 @@ Object.assign(CHANGE, {
   },
 });
 
+// Plain-English versions of the sign-in errors Supabase sends back.
+function authMsg(e) {
+  const m = String((e && e.message) || ""); const code = e && e.code;
+  if (code === "over_email_send_rate_limit" || /email rate limit/i.test(m)) return "Too many sign-up emails went out in the last hour. Please try again in about an hour.";
+  if (/rate limit|too many/i.test(m)) return "Too many tries in a row. Wait a minute and try again.";
+  if (/invalid login/i.test(m)) return "That email and password don't match.";
+  if (/not confirmed/i.test(m)) return "Confirm your email first — open the link we sent you, then sign in here.";
+  if (/already registered|already exists/i.test(m)) return "There's already an account with that email. Sign in instead.";
+  if (/password/i.test(m) && /(6|characters|weak)/i.test(m)) return "Use a password with at least 6 characters.";
+  if (/fetch|network/i.test(m)) return "Couldn't reach the sign-in service. Check your connection and try again.";
+  return m || "Something went wrong. Try again.";
+}
+
 const SUBMIT = {
   auth: async fd => {
     const email = String(fd.get("email") || "").trim(); const pw = String(fd.get("password") || ""); const mode = (U.modal && U.modal.mode) || "in";
@@ -312,7 +325,7 @@ const SUBMIT = {
         U.modal = r.session ? null : { type: "account", mode: "in", msg: "Check your email for a confirmation link, then sign in here." };
         if (r.session) toast("Account created — your stuff now saves to it"); else redraw();
       } else { await signIn(email, pw); U.modal = null; toast("Signed in — syncing your stuff"); }
-    } catch (e) { U.modal = { type: "account", mode, err: e.message || "Something went wrong" }; redraw(); }
+    } catch (e) { U.modal = { type: "account", mode, err: authMsg(e) }; redraw(); }
   },
   newlist: fd => { const name = String(fd.get("name") || "").trim(); if (!name) return; const id = uid();
     commit(s => { s.wish.lists.push({ id, name, updated: Date.now() }); }); U.modal = null; U.wishList = id; U.wishView = "all"; redraw(); },
