@@ -32,10 +32,15 @@ if not cat:
 cid = cat["categoryId"]
 
 NUM = re.compile(r"^[A-Z]{1,4}\d{0,2}-\d{3}$")
-best = {}   # number -> {"m","l","u","v":[...]}
+VARIANT = re.compile(r"\((?:Parallel|Alternate Art|Manga|SP|Full Art|Box Topper|Treasure|Pre-Release|Gold|Silver|Red|Blue|Jolly Roger|Textured|Signature|Winner|Judge|Promo|Reprint|Foil)[^)]*\)", re.I)
+REPRINT_GROUP = re.compile(r"release event|demo|starter deck.*(?:2|ii)|premium|best|anniversary|promotion|promo|tournament|pack|collection|reprint", re.I)
+found = {}  # number -> list of candidates
 
 for g in results(f"{BASE}/{cid}/groups"):
     gid = g["groupId"]
+    gname = g.get("name") or ""
+    # set codes this group covers: "ST-31" -> ST31, "OP15-EB04" -> OP15 + EB04, "OP18 RE" -> OP18
+    gsets = {t.replace("-", "") for t in re.findall(r"[A-Z]+-?\d+", (g.get("abbreviation") or "").upper())}
     try:
         products = results(f"{BASE}/{cid}/{gid}/products")
         prices = results(f"{BASE}/{cid}/{gid}/prices")
@@ -55,25 +60,32 @@ for g in results(f"{BASE}/{cid}/groups"):
             continue  # sealed product, accessories
         p = pr.get(prod["productId"]) or {}
         market = p.get("marketPrice") or p.get("midPrice")
-        low = p.get("lowPrice")
         name = prod.get("name") or ""
-        url = prod.get("url") or f"https://www.tcgplayer.com/product/{prod['productId']}"
-        is_variant = bool(re.search(r"\((?:Parallel|Alternate Art|Manga|SP|Full Art|Box Topper|Treasure|Pre-Release|Gold|Silver|Red|Blue|Jolly Roger|Textured|Signature|Winner|Judge|Promo)[^)]*\)", name, re.I))
-        rec = best.setdefault(num, {"m": None, "l": None, "u": None, "v": []})
-        if not is_variant and rec["u"] is None:
-            rec["m"] = round(market, 2) if market else None
-            rec["l"] = round(low, 2) if low else None
-            rec["u"] = url
-        else:
-            rec["v"].append([name, round(market, 2) if market else None, url])
+        found.setdefault(num, []).append({
+            "variant": bool(VARIANT.search(name)),
+            "reprint_group": bool(REPRINT_GROUP.search(gname)),
+            "home": num.split("-")[0] in gsets and not REPRINT_GROUP.search(gname),   # the card's own set (OP01 for OP01-001)
+            "gid": gid, "name": name,
+            "m": round(market, 2) if market else None,
+            "l": round(p["lowPrice"], 2) if p.get("lowPrice") else None,
+            "u": prod.get("url") or f"https://www.tcgplayer.com/product/{prod['productId']}",
+            "pid": prod["productId"],
+        })
 
-# a card whose only listings are variants still gets a link
-for num, rec in best.items():
-    if rec["u"] is None and rec["v"]:
-        rec["v"].sort(key=lambda v: (v[1] is None, v[1] or 0))
-        rec["u"] = rec["v"][0][2]
-    if not rec["v"]:
-        del rec["v"]
+# The "regular" price: the plain printing from the card's own set if there is one,
+# otherwise the oldest plain printing. Everything else is listed as another printing.
+best = {}
+for num, cands in found.items():
+    plain = [c for c in cands if not c["variant"]]
+    plain.sort(key=lambda c: (not c["home"], c["reprint_group"], c["m"] is None, c["gid"]))
+    main = plain[0] if plain else None
+    if main is None:
+        main = sorted(cands, key=lambda c: (c["m"] is None, c["m"] or 0))[0]
+    rec = {"m": main["m"], "l": main["l"], "u": main["u"], "pid": main["pid"]}
+    v = [[c["name"], c["m"], c["u"]] for c in cands if c is not main]
+    if v:
+        rec["v"] = sorted(v, key=lambda x: (x[1] is None, x[1] or 0))
+    best[num] = rec
 
 out = {"updated": datetime.date.today().isoformat(), "source": "TCGplayer via tcgcsv.com", "p": best}
 json.dump(out, open(OUT, "w"), separators=(",", ":"))
