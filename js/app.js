@@ -42,7 +42,7 @@ function modalView() {
   return "";
 }
 function importModal() {
-  const I = U.imp; const R = I.text.trim() ? parseDeckText(I.text, I.picks) : null;
+  const I = U.imp; const into = I.into && S.decks.find(d => d.id === I.into); const R = I.text.trim() ? parseDeckText(I.text, I.picks) : null;
   const linkOnly = looksLikeOnlyALink(I.text);
   const ok = R && R.leader && R.total > 0;
   const fix = R ? R.rows.map((r, i) => [r, i]).filter(([r]) => r.status !== "ok") : [];
@@ -63,7 +63,7 @@ function importModal() {
             ${R.leaderChoices && R.leaderChoices.length ? `<label class="sr" for="impL">Choose the leader</label><select id="impL" class="field" style="padding:6px 8px;font-weight:700" data-change="imp-pick" data-i="L">${R.leader ? "" : `<option value="">Choose a leader…</option>`}${R.leaderChoices.slice(0, 60).map(c => `<option value="${c.i}" ${R.leader === c ? "selected" : ""}>${esc(c.n)} · ${opt(c)}</option>`).join("")}</select>`
               : R.leader ? `<span style="font-size:16px;font-weight:900;color:var(--ink2)">${esc(R.leader.n)} <span class="muted" style="font-size:13px">${R.leader.i} · ${R.leader.co.join(" / ")}</span></span>` : `<span style="font-weight:800;color:#B8473F">No leader found in the list</span>`}</div>
           <span style="margin-left:auto;font-size:26px;font-weight:900">${R.total}<span class="muted" style="font-size:15px"> / 50</span></span></div>
-        <label class="sr" for="impname">Deck name</label><input id="impname" class="field" type="text" maxlength="60" style="padding:10px 12px;font-weight:700" placeholder="${esc(R.leader ? R.leader.n + " deck" : "Deck name")}" value="${esc(I.name)}" data-input="imp-name">
+        ${into && I.mode === "replace" ? "" : `<label class="sr" for="impname">Deck name</label>`}<input ${into && I.mode === "replace" ? 'type="hidden" ' : ""}id="impname" class="field" type="text" maxlength="60" style="padding:10px 12px;font-weight:700" placeholder="${esc(R.leader ? R.leader.n + " deck" : "Deck name")}" value="${esc(I.name)}" data-input="imp-name">
         ${R.notes.length ? `<div class="warn">${R.notes.map(esc).join(" · ")}</div>` : ""}
         ${fix.length ? `<div style="display:flex;flex-direction:column;gap:8px"><span class="label">Check these</span>${fix.map(([r, i]) => `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px">
             <code style="flex:0 1 220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.raw.trim())}</code>
@@ -71,7 +71,9 @@ function importModal() {
               : `<span class="muted" style="font-weight:700">${r.options.length} cards share this name:</span><label class="sr" for="imp${i}">Which ${esc(r.name)}</label><select id="imp${i}" class="field" style="padding:6px 8px;font-weight:700;max-width:100%" data-change="imp-pick" data-i="${i}">${r.options.filter(c => c.c !== "L").map(c => `<option value="${c.i}" ${r.card === c ? "selected" : ""}>${opt(c)}</option>`).join("")}</select>${r.status === "guess" ? `<span style="font-size:12px;font-weight:900;color:var(--gold-ink);background:#FFF1D0;border-radius:6px;padding:2px 7px">best guess</span>` : ""}`}</div>`).join("")}</div>` : ""}
         ${good.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 16px;font-size:13.5px;font-weight:700;max-height:220px;overflow:auto">${good.map(([c, n]) => `<span style="display:flex;gap:8px;align-items:center;min-width:0"><b style="width:22px;text-align:right">${n}×</b><span class="dot" style="background:${SOLID[c.co[0]]}"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.n)}</span><span class="muted" style="font-size:12px;margin-left:auto">${c.i}</span></span>`).join("")}</div>` : ""}
       </div>` : I.text.trim() && !linkOnly ? `<div class="warn">No cards found in that text yet.</div>` : ""}
-    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-soft" data-act="modal-close">Cancel</button><button class="btn btn-blue" data-act="imp-go" ${ok ? "" : "disabled style=\"opacity:.5;pointer-events:none\""}>Import deck</button></div>
+    ${into ? `<div style="display:flex;flex-direction:column;gap:8px"><span class="label">Put it where?</span>
+      ${[["replace", `Replace the cards in “${esc(into.name)}”`, "Keeps the deck's name and your tracked copies. The leader changes if the list has a different one."], ["new", "Save as a new deck", "Your open deck stays as it is."]].map(([k, t, sub]) => `<button class="radio ${I.mode === k ? "on" : ""}" data-act="imp-mode" data-k="${k}" aria-pressed="${I.mode === k}"><i></i><span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14.5px;font-weight:800">${t}</span><span class="muted" style="font-size:12.5px;font-weight:600">${sub}</span></span></button>`).join("")}</div>` : ""}
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-soft" data-act="modal-close">Cancel</button><button class="btn btn-blue" data-act="imp-go" ${ok ? "" : "disabled style=\"opacity:.5;pointer-events:none\""}>${into && I.mode === "replace" ? "Replace cards" : "Import deck"}</button></div>
   </div></div>`;
 }
 function view() {
@@ -127,6 +129,7 @@ document.addEventListener("keydown", ev => {
 
 // ---------------- helpers ----------------
 const deckNow = () => currentDeck();
+function editDeckById(id, fn) { commit(s => { const d = s.decks.find(x => x.id === id); if (d) { fn(d); d.updated = Date.now(); } }); }
 function editDeck(fn) { const d = deckNow(); if (!d) return; commit(() => { fn(d); d.updated = Date.now(); }); }
 async function copy(text, msg = "Copied") {
   try { await navigator.clipboard.writeText(text); toast(msg); }
@@ -218,9 +221,18 @@ Object.assign(ACT, {
     U.deckId = null; localStorage.removeItem("decklab:open"); U.modal = null; location.hash = "#/decks"; toast("Deck deleted"); },
 
   // import
-  "import": () => { U.imp = { text: "", picks: {}, name: "" }; U.modal = { type: "import" }; redraw(); setTimeout(() => { const t = document.getElementById("imptext"); t && t.focus(); }, 30); },
+  "import": d => { U.imp = { text: "", picks: {}, name: "", into: d.into || null, mode: d.into ? "replace" : "new" }; U.modal = { type: "import" }; redraw(); setTimeout(() => { const t = document.getElementById("imptext"); t && t.focus(); }, 30); },
+  "imp-mode": d => { U.imp.mode = d.k; redraw(); },
+  "undo-import": () => { const u = U.undoImport; if (!u) return; editDeckById(u.id, x => { x.leader = u.before.leader; x.cards = u.before.cards; }); U.undoImport = null; U.menu = null; toast("Import undone"); },
   "imp-go": () => {
     const R = parseDeckText(U.imp.text, U.imp.picks); if (!R.leader || !R.total) return;
+    const into = U.imp.into && S.decks.find(d => d.id === U.imp.into);
+    if (into && U.imp.mode === "replace") {
+      const before = { leader: into.leader, cards: Object.assign({}, into.cards) };
+      editDeckById(into.id, x => { x.leader = R.leader.i; x.cards = R.cards; });
+      U.undoImport = { id: into.id, before }; U.modal = null; U.imp = null; U.preview = null; U.statSel = null;
+      toast(`Replaced with ${R.total} cards — Undo is in the Export menu`); return;
+    }
     const id = uid(); const now = Date.now(); const name = U.imp.name.trim() || `${R.leader.n} deck`;
     commit(s => { s.decks.unshift({ id, name, leader: R.leader.i, cards: R.cards, track: false, fav: false, created: now, updated: now }); });
     openDeck(id); U.modal = null; U.imp = null;

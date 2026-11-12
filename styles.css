@@ -231,3 +231,6 @@ pre.export { margin: 0; padding: 12px; font-family: "JetBrains Mono", ui-monospa
 .wcard .cbtn { width: 100%; }
 .buyrow .ctile { padding: 2px; border-radius: 6px; }
 .buyrow .ctile .pow, .buyrow .ctile .fb, .buyrow .ctile .cost { display: none; }
+/* open dropdowns sit above the panels below them */
+.glass:has(.popmenu), .glass:has(.rel [aria-expanded="true"]) { position: relative; z-index: 30; }
+.deckhead, .toolbar { position: relative; z-index: 5; }
