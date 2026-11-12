@@ -17,7 +17,8 @@ function leaderPicker() {
   return `<main class="wrap"><section class="glass" style="padding:20px;display:flex;flex-direction:column;gap:14px">
     <div style="display:flex;flex-wrap:wrap;align-items:center;gap:14px"><span class="pagename">Pick a leader for a new deck</span>
       <div class="field searchbox" style="flex:1 1 300px">${IC.search}<label class="sr" for="lq">Search leaders</label><input id="lq" type="search" value="${esc(U.leaderQ)}" placeholder="Search leaders by name, color or type" data-input="leaderQ"></div>
-      ${S.decks.length ? `<a class="btn btn-soft" href="#/decks">Or open a saved deck</a>` : ""}</div>
+      <button class="btn btn-soft" data-act="import">Import a decklist</button>
+      ${S.decks.length ? `<a class="btn btn-soft" href="#/decks">Open a saved deck</a>` : ""}</div>
     <div class="grid-cards">${R.best.map(c => `<button class="cbtn" data-act="new-deck" data-id="${c.i}">${tile(c)}<span class="cname">${esc(c.n)}</span><span class="cmeta"><span>${c.i}</span><span>${c.co.join("/")}</span></span></button>`).join("")}</div>
   </section></main>`;
 }

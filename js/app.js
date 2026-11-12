@@ -1,9 +1,10 @@
 // Deck Lab — router, events and start-up.
-import { DB, loadData, esc, CAT } from "./data.js";
+import { DB, loadData, esc, CAT, tile, SOLID } from "./data.js";
 import { S, sync, commit, uid, onChange, onNotice, initAuth, signIn, signUp, signOut, startSharing, stopSharing, fetchShared, uploadBackground, removeBackground } from "./store.js";
 import { U, ACT, INPUT, CHANGE, setRender, redraw, toast, header, bgPanel, accountModal, cardDetail, paintBackground, loadClouds } from "./ui.js";
 import { cardsView, currentDeck } from "./views/cards.js";
 import { builderView, deckTotal } from "./views/builder.js";
+import { parseDeckText, looksLikeOnlyALink } from "./importer.js";
 import { decksView, buyView, sheetView, wishView, sharedView, buyData, exportText } from "./views/lists.js";
 
 U.PF = U.PF || {}; U.pReadOff = U.pReadOff || []; U.deckFilter = "recent"; U.shared = null;
@@ -34,10 +35,44 @@ function modalView() {
   if (m.type === "del-deck") { const d = currentDeck(); if (!d) return "";
     return shell(`<h2 class="h2">Delete “${esc(d.name)}”?</h2><span style="font-size:14px">This removes the deck from every device you're signed in on. Cards you marked as owned stay.</span>
       <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-soft" data-act="modal-close">Cancel</button><button class="btn btn-red" data-act="del-deck-yes">Delete deck</button></div>`, "Delete deck", 420); }
+  if (m.type === "import") return importModal();
   if (m.type === "newlist") return `<div class="modal-back" data-act="modal-close"><form class="glass modal" data-stop="1" data-submit="newlist" role="dialog" aria-label="New list">
       <h2 class="h2">New list</h2><label class="sr" for="ln">List name</label><input class="field" id="ln" type="text" name="name" placeholder="e.g. Trades, Birthday, OP-09 chase" maxlength="40" required autofocus>
       <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-soft" type="button" data-act="modal-close">Cancel</button><button class="btn btn-blue" type="submit">Make list</button></div></form></div>`;
   return "";
+}
+function importModal() {
+  const I = U.imp; const R = I.text.trim() ? parseDeckText(I.text, I.picks) : null;
+  const linkOnly = looksLikeOnlyALink(I.text);
+  const ok = R && R.leader && R.total > 0;
+  const fix = R ? R.rows.map((r, i) => [r, i]).filter(([r]) => r.status !== "ok") : [];
+  const good = R ? Object.entries(R.cards).map(([id, n]) => [DB.byId[id], n]).sort((a, b) => (a[0].k ?? 99) - (b[0].k ?? 99) || a[0].n.localeCompare(b[0].n)) : [];
+  const opt = c => `${c.i} · ${c.co.join("/")} · ${c.c === "L" ? "Leader" : "cost " + (c.k ?? "–")}${c.p != null && c.c !== "L" ? " · " + c.p : ""}`;
+  return `<div class="modal-back" data-act="modal-close"><div class="glass modal" style="width:780px" data-stop="1" role="dialog" aria-label="Import a decklist">
+    <div style="display:flex;align-items:center;gap:10px"><h2 class="h2">Import a decklist</h2><button class="btn btn-soft avatar" style="margin-left:auto;width:36px;height:36px" data-act="modal-close" aria-label="Close">×</button></div>
+    <span style="font-size:14px">Paste a list from <b>OPTCGSim</b>, <b>Limitless</b> (Copy to Sim / Copy as text), <b>Egman</b>, <b>One Piece Top Decks</b>, <b>onepiece.gg</b> or any list like <code>4xOP01-016</code>, <code>4 OP01-016 Nami</code> or <code>4 Nami</code>.</span>
+    <label class="sr" for="imptext">Decklist</label>
+    <textarea id="imptext" class="field" rows="8" spellcheck="false" placeholder="1xOP05-002&#10;4xOP05-016&#10;4xOP01-016&#10;…" data-input="imp-text" style="width:100%;padding:12px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.5;resize:vertical">${esc(I.text)}</textarea>
+    <label class="linkbtn" style="align-self:flex-start;cursor:pointer">Or open a .txt / .csv file<input type="file" accept=".txt,.csv,.json,text/plain" data-change="imp-file" class="sr"></label>
+    ${linkOnly ? `<div class="warn">That link doesn't carry the cards inside it. On that site use <b>Copy to Sim</b> or <b>Copy as text</b>, then paste the list here.</div>` : ""}
+    ${R && R.rows.length ? `
+      <div class="field" style="padding:14px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          ${R.leader ? `<div style="width:44px;flex:none">${tile(R.leader, { noTrig: true })}</div>` : ""}
+          <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span class="label">Leader</span>
+            ${R.leaderChoices && R.leaderChoices.length ? `<label class="sr" for="impL">Choose the leader</label><select id="impL" class="field" style="padding:6px 8px;font-weight:700" data-change="imp-pick" data-i="L">${R.leader ? "" : `<option value="">Choose a leader…</option>`}${R.leaderChoices.slice(0, 60).map(c => `<option value="${c.i}" ${R.leader === c ? "selected" : ""}>${esc(c.n)} · ${opt(c)}</option>`).join("")}</select>`
+              : R.leader ? `<span style="font-size:16px;font-weight:900;color:var(--ink2)">${esc(R.leader.n)} <span class="muted" style="font-size:13px">${R.leader.i} · ${R.leader.co.join(" / ")}</span></span>` : `<span style="font-weight:800;color:#B8473F">No leader found in the list</span>`}</div>
+          <span style="margin-left:auto;font-size:26px;font-weight:900">${R.total}<span class="muted" style="font-size:15px"> / 50</span></span></div>
+        <label class="sr" for="impname">Deck name</label><input id="impname" class="field" type="text" maxlength="60" style="padding:10px 12px;font-weight:700" placeholder="${esc(R.leader ? R.leader.n + " deck" : "Deck name")}" value="${esc(I.name)}" data-input="imp-name">
+        ${R.notes.length ? `<div class="warn">${R.notes.map(esc).join(" · ")}</div>` : ""}
+        ${fix.length ? `<div style="display:flex;flex-direction:column;gap:8px"><span class="label">Check these</span>${fix.map(([r, i]) => `<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px">
+            <code style="flex:0 1 220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(r.raw.trim())}</code>
+            ${r.status === "missing" ? `<span style="color:#B8473F;font-weight:800">${esc(r.why)} — skipped</span>`
+              : `<span class="muted" style="font-weight:700">${r.options.length} cards share this name:</span><label class="sr" for="imp${i}">Which ${esc(r.name)}</label><select id="imp${i}" class="field" style="padding:6px 8px;font-weight:700;max-width:100%" data-change="imp-pick" data-i="${i}">${r.options.filter(c => c.c !== "L").map(c => `<option value="${c.i}" ${r.card === c ? "selected" : ""}>${opt(c)}</option>`).join("")}</select>${r.status === "guess" ? `<span style="font-size:12px;font-weight:900;color:var(--gold-ink);background:#FFF1D0;border-radius:6px;padding:2px 7px">best guess</span>` : ""}`}</div>`).join("")}</div>` : ""}
+        ${good.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 16px;font-size:13.5px;font-weight:700;max-height:220px;overflow:auto">${good.map(([c, n]) => `<span style="display:flex;gap:8px;align-items:center;min-width:0"><b style="width:22px;text-align:right">${n}×</b><span class="dot" style="background:${SOLID[c.co[0]]}"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.n)}</span><span class="muted" style="font-size:12px;margin-left:auto">${c.i}</span></span>`).join("")}</div>` : ""}
+      </div>` : I.text.trim() && !linkOnly ? `<div class="warn">No cards found in that text yet.</div>` : ""}
+    <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-soft" data-act="modal-close">Cancel</button><button class="btn btn-blue" data-act="imp-go" ${ok ? "" : "disabled style=\"opacity:.5;pointer-events:none\""}>Import deck</button></div>
+  </div></div>`;
 }
 function view() {
   if (!DB.ready) return `<main class="wrap"><div class="glass empty">Loading cards…</div></main>`;
@@ -182,6 +217,17 @@ Object.assign(ACT, {
   "del-deck-yes": () => { const deck = deckNow(); if (!deck) return; commit(s => { s.decks = s.decks.filter(x => x.id !== deck.id); s.gone.push(deck.id); delete s.buy.decks[deck.id]; });
     U.deckId = null; localStorage.removeItem("decklab:open"); U.modal = null; location.hash = "#/decks"; toast("Deck deleted"); },
 
+  // import
+  "import": () => { U.imp = { text: "", picks: {}, name: "" }; U.modal = { type: "import" }; redraw(); setTimeout(() => { const t = document.getElementById("imptext"); t && t.focus(); }, 30); },
+  "imp-go": () => {
+    const R = parseDeckText(U.imp.text, U.imp.picks); if (!R.leader || !R.total) return;
+    const id = uid(); const now = Date.now(); const name = U.imp.name.trim() || `${R.leader.n} deck`;
+    commit(s => { s.decks.unshift({ id, name, leader: R.leader.i, cards: R.cards, track: false, fav: false, created: now, updated: now }); });
+    openDeck(id); U.modal = null; U.imp = null;
+    if (location.hash !== "#/builder") location.hash = "#/builder"; else redraw();
+    toast(`Imported ${name} — ${R.total} cards`);
+  },
+
   // buy list
   "buy-mode": d => commit(s => { s.buy.mode = d.k; }),
   "got-one": d => commit(s => { s.owned[d.id] = (s.owned[d.id] || 0) + 1; }),
@@ -214,6 +260,8 @@ Object.assign(INPUT, {
   "pq": v => { U.pq = v; U.pShown = 60; redraw(); },
   "leaderQ": v => { U.leaderQ = v; redraw(); },
   "wishQ": v => { U.wishQ = v; redraw(); },
+  "imp-text": v => { U.imp.text = v; U.imp.picks = {}; redraw(); },
+  "imp-name": v => { U.imp.name = v; },
   // sliders: update the photo live without rebuilding the page (so dragging keeps working)
   "bg-blur": (v, el) => { commit(s => { s.settings.blur = +v; }, { silent: true }); el.nextElementSibling.textContent = v; paintBackground(); },
   "bg-veil": (v, el) => { commit(s => { s.settings.veil = +v; }, { silent: true }); el.nextElementSibling.textContent = v; paintBackground(); },
@@ -226,6 +274,8 @@ Object.assign(CHANGE, {
     F[k] = (F[k] || []).filter(x => x !== v); if (el.checked) F[k].push(v);
     U.cardsShown = 120; redraw();
   },
+  "imp-pick": (el, d) => { U.imp.picks[d.i] = el.value; redraw(); },
+  "imp-file": async el => { const f = el.files && el.files[0]; if (!f) return; if (f.size > 200000) return toast("That file is too big for a decklist"); U.imp.text = await f.text(); U.imp.picks = {}; redraw(); },
   "deck-name": el => editDeck(x => { x.name = el.value.trim() || x.name; }),
   "buy-deck": (el, d) => commit(s => { s.buy.decks[d.id] = el.checked; }),
   "wish-sort": el => { U.wishSort = el.value; redraw(); },

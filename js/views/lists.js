@@ -12,7 +12,8 @@ export function decksView() {
   return `<main class="wrap">
     <section class="glass toolbar"><span class="pagename">Decks</span>
       <div class="seg" role="group" aria-label="Show">${[["recent", "Recent"], ["fav", "☆ Favorites"], ["done", "✓ Complete"]].map(([k, l]) => `<button class="${f === k ? "on" : ""}" data-act="deck-filter" data-k="${k}">${l}</button>`).join("")}</div>
-      <a class="btn btn-blue" style="margin-left:auto" href="#/builder" data-act="new-deck-start">+ New deck</a></section>
+      <button class="btn btn-soft" style="margin-left:auto" data-act="import">Import decklist</button>
+      <a class="btn btn-blue" href="#/builder" data-act="new-deck-start">+ New deck</a></section>
     ${list.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px">${list.map(d => {
       const L = DB.byId[d.leader]; if (!L) return "";
       const n = deckTotal(d); let have = 0; for (const [id, c] of Object.entries(d.cards)) have += Math.min(S.owned[id] || 0, c);
@@ -29,7 +30,7 @@ export function decksView() {
           </div></div>
         <button class="linkbtn" style="position:absolute;right:16px;top:14px;font-size:20px" data-act="fav-deck" data-id="${d.id}" aria-label="${d.fav ? "Unfavorite" : "Favorite"}" aria-pressed="${!!d.fav}">${d.fav ? "★" : "☆"}</button>
       </div>`; }).join("")}</div>`
-      : `<div class="glass empty">${S.decks.length ? "No decks here yet." : "No decks yet. Start one with + New deck."}</div>`}
+      : `<div class="glass empty">${S.decks.length ? "No decks here yet." : "No decks yet. Start one with + New deck, or bring one in with Import decklist."}</div>`}
   </main>`;
 }
 
