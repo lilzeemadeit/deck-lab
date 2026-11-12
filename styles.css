@@ -234,3 +234,16 @@ pre.export { margin: 0; padding: 12px; font-family: "JetBrains Mono", ui-monospa
 /* open dropdowns sit above the panels below them */
 .glass:has(.popmenu), .glass:has(.rel [aria-expanded="true"]) { position: relative; z-index: 30; }
 .deckhead, .toolbar { position: relative; z-index: 5; }
+/* card pictures: no trigger strip over real art (the card shows it); big readable picture in details */
+.ctile.has-img .trg { display: none; }
+.bigcard { position: relative; width: min(100%, 340px); align-self: center; gap: 0; }
+.bigcard .ctile { border-radius: 16px; padding: 5px; }
+.bigcard .ctile .in { border-radius: 11px; }
+.bigcard .zoomhint { position: absolute; right: 12px; bottom: 12px; display: flex; align-items: center; gap: 5px; background: rgba(27,52,97,0.82); color: #FFF; font-size: 12px; font-weight: 800; padding: 5px 9px; border-radius: 999px; opacity: 0; transition: opacity .15s; }
+.bigcard:hover .zoomhint, .bigcard:focus-visible .zoomhint { opacity: 1; }
+@media (hover: none) { .bigcard .zoomhint { opacity: 1; } }
+.zoomback { background: rgba(10,24,52,0.78); cursor: zoom-out; }
+.zoomcard { width: min(92vw, calc(92vh * 63 / 88), 640px); }
+.zoomcard .ctile { border-radius: 18px; padding: 0; box-shadow: 0 30px 80px rgba(0,0,0,0.5); }
+.zoomcard .ctile .in { border-radius: 18px; }
+.zoomx { position: fixed; top: 16px; right: 16px; width: 44px; height: 44px; font-size: 22px; }

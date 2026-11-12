@@ -36,6 +36,8 @@ function modalView() {
     return shell(`<h2 class="h2">Delete “${esc(d.name)}”?</h2><span style="font-size:14px">This removes the deck from every device you're signed in on. Cards you marked as owned stay.</span>
       <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-soft" data-act="modal-close">Cancel</button><button class="btn btn-red" data-act="del-deck-yes">Delete deck</button></div>`, "Delete deck", 420); }
   if (m.type === "import") return importModal();
+  if (m.type === "zoom") { const c = DB.byId[m.id]; if (!c) return "";
+    return `<div class="modal-back zoomback" data-act="modal-close" role="dialog" aria-label="${esc(c.n)} card"><div class="zoomcard">${tile(c, { suffix: m.sfx || "", noTrig: true })}</div><button class="btn btn-soft avatar zoomx" data-act="modal-close" aria-label="Close">×</button></div>`; }
   if (m.type === "newlist") return `<div class="modal-back" data-act="modal-close"><form class="glass modal" data-stop="1" data-submit="newlist" role="dialog" aria-label="New list">
       <h2 class="h2">New list</h2><label class="sr" for="ln">List name</label><input class="field" id="ln" type="text" name="name" placeholder="e.g. Trades, Birthday, OP-09 chase" maxlength="40" required autofocus>
       <div style="display:flex;gap:10px;justify-content:flex-end"><button class="btn btn-soft" type="button" data-act="modal-close">Cancel</button><button class="btn btn-blue" type="submit">Make list</button></div></form></div>`;
@@ -150,7 +152,7 @@ Object.assign(ACT, {
   // header, account, background
   "account": () => { U.modal = { type: "account", mode: "in" }; redraw(); },
   "auth-mode": () => { U.modal = { type: "account", mode: U.modal && U.modal.mode === "up" ? "in" : "up" }; redraw(); },
-  "modal-close": () => { U.modal = null; redraw(); },
+  "modal-close": () => { U.modal = U.modal && U.modal.type === "zoom" && U.zoomReturn ? U.zoomReturn : null; U.zoomReturn = null; redraw(); },
   "signout": async () => { await signOut(); U.modal = null; U.deckId = null; toast("Signed out — everything is saved in your account"); },
   "bg-toggle": () => { U.bgOpen = !U.bgOpen; redraw(); },
   "bg-close": () => { U.bgOpen = false; redraw(); },
@@ -170,6 +172,8 @@ Object.assign(ACT, {
   "menu": d => { U.menu = U.menu === d.k ? null : d.k; redraw(); },
   "menu-clear": d => { const [F, k] = d.k.startsWith("p") ? [U.PF, d.k.slice(1)] : [U.F, d.k]; F[k] = []; redraw(); },
   "detail": d => { U.modal = { type: "card", id: d.id }; redraw(); },
+  "zoom": d => { U.zoomReturn = U.modal; U.modal = { type: "zoom", id: d.id, sfx: d.sfx || "" }; redraw(); },
+  "detail-art": d => { U.detailArt = { id: d.id, sfx: d.sfx || "" }; redraw(); },
   "wish-add": d => {
     if (S.wish.items.some(x => x.card === d.id && !x.got)) return toast("Already on your Wishlist");
     commit(s => s.wish.items.push({ id: uid(), card: d.id, sfx: "", pri: "WANT", qty: 1, got: false, list: U.wishList || null, note: "", added: Date.now(), updated: Date.now() }));

@@ -1,5 +1,5 @@
 // Shared UI state, icons, header, background, the card detail panel and small helpers.
-import { DB, esc, tile, fmtEffect, CAT, price, money, tcgUrl, priceAsOf } from "./data.js";
+import { DB, esc, tile, fmtEffect, CAT, price, money, tcgUrl, priceAsOf, imgUrls } from "./data.js";
 import { S, sync } from "./store.js";
 import { lockInfo } from "./rules.js";
 
@@ -27,6 +27,7 @@ export const IC = {
   box: `<svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2A6CD3" stroke-width="1.9"><rect x="3" y="6" width="18" height="14" rx="2.5"/><path d="M3 10h18M9 14l3 2 3-2"/></svg>`,
   shell: `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="#FFF6DC" stroke="#C48E1C" stroke-width="1.6" stroke-linecap="round"><path d="M12 21c-5 0-9-3.6-9-8.2C3 7.6 7 3 12.2 3 16.6 3 20 6.2 20 10.3c0 3.4-2.7 6-6 6-2.7 0-4.8-2-4.8-4.6 0-2.1 1.7-3.8 3.8-3.8 1.7 0 3 1.3 3 2.9"/><path d="M12 21c2.6 0 5-1 6.6-2.8"/></svg>`,
   photo: `<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2A6CD3" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M3 17l5-5 4 4 3-3 6 6"/></svg>`,
+  zoom: `<svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 7.5v6M7.5 10.5h6"/></svg>`,
   caret: `<svg aria-hidden="true" width="10" height="10" viewBox="0 0 12 12"><path d="M1 3h10L6 9z" fill="currentColor"/></svg>`,
   spark: `<svg aria-hidden="true" width="20" height="20" viewBox="-11 -11 22 22"><path d="M0 -10 Q0 0 10 0 Q0 0 0 10 Q0 0 -10 0 Q0 0 0 -10Z" fill="#3B84E6"/></svg>`,
 };
@@ -115,8 +116,9 @@ export function cardDetail(card, opts = {}) {
   const lk = L ? lockInfo(card, L) : null;
   const p = price(card.i); const asof = priceAsOf();
   const inDeck = deck ? (deck.cards[card.i] || 0) : 0;
-  return `<div style="display:flex;gap:16px">
-      <div style="width:128px;flex:none">${tile(card)}</div>
+  const sfx = U.detailArt && U.detailArt.id === card.i ? U.detailArt.sfx : "";
+  return `<button class="cbtn bigcard" data-act="zoom" data-id="${card.i}" data-sfx="${esc(sfx)}" aria-label="Enlarge ${esc(card.n)}">${tile(card, { suffix: sfx, noTrig: true })}<span class="zoomhint">${IC.zoom} Tap to enlarge</span></button>
+    <div style="display:flex;gap:16px">
       <div style="display:flex;flex-direction:column;gap:6px;min-width:0">
         <span class="muted" style="font-size:12.5px;font-weight:700;font-family:'JetBrains Mono',monospace">${card.i} · ${card.r}${card.up ? " · UPCOMING" : ""}</span>
         <h2 class="h2" style="font-size:24px;color:var(--ink2);line-height:1.1">${esc(card.n)}</h2>
@@ -141,7 +143,7 @@ export function cardDetail(card, opts = {}) {
       <span class="muted" style="text-align:center;font-size:13px;font-weight:700">${p && p.m != null ? `Market ${money(p.m)}${asof ? " · as of " + asof : ""}` : "No price yet — check TCGplayer"}</span>
       ${p && p.v && p.v.length ? `<details><summary class="muted" style="font-size:13px;font-weight:800;cursor:pointer">Other printings on TCGplayer (${p.v.length})</summary><div style="display:flex;flex-direction:column;gap:4px;margin-top:6px">${p.v.slice(0, 12).map(v => `<a href="${esc(v[2])}" target="_blank" rel="noopener" style="display:flex;justify-content:space-between;font-size:13px;font-weight:700"><span>${esc(v[0])}</span><span>${money(v[1])}</span></a>`).join("")}</div></details>` : ""}
     </div>
-    ${card.v && card.v.length > 1 ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="label">Printings</span><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">${card.v.map(v => `<div title="${esc(v[1] + " · " + v[2])}">${tile(card, { suffix: v[0], noTrig: true })}<div class="muted" style="font-size:11px;font-weight:700;text-align:center;margin-top:3px">${esc(v[1])}</div></div>`).join("")}</div></div>` : ""}`;
+    ${card.v && card.v.length > 1 ? `<div style="display:flex;flex-direction:column;gap:6px"><span class="label">Printings</span><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">${card.v.map(v => `<button class="cbtn ${v[0] === sfx ? "sel" : ""}" data-act="detail-art" data-id="${card.i}" data-sfx="${esc(v[0])}" title="${esc(v[1] + " · " + v[2])}" aria-label="Show the ${esc(v[1])} printing">${tile(card, { suffix: v[0], noTrig: true })}<span class="muted" style="font-size:11px;font-weight:700;text-align:center">${esc(v[1])}</span></button>`).join("")}</div></div>` : ""}`;
 }
 
 // generic dropdown chip (multi-select)

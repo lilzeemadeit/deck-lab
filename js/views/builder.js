@@ -56,7 +56,7 @@ function poolColumn(deck, L) {
       return `<div style="display:flex;flex-direction:column;gap:5px;opacity:${op}">
         <button class="cbtn ${U.preview === c.i ? "sel" : ""}" data-act="preview" data-id="${c.i}" aria-label="Preview ${esc(c.n)}">${tile(c, { extra: badge + (n ? `<span class="badge-n" style="min-width:26px;height:26px;font-size:13px">×${n}</span>` : "") + (c.up ? `<span class="upc">UPCOMING</span>` : "") })}</button>
         <span class="cname" title="${esc(c.n)}">${esc(c.n)}</span>
-        <div style="display:flex;gap:4px"><button class="btn btn-soft btn-xs" style="flex:1" data-act="deck-add" data-id="${c.i}">+ Add</button><button class="btn btn-soft btn-xs" data-act="detail" data-id="${c.i}" aria-label="Details for ${esc(c.n)}">i</button></div></div>`;
+        <div style="display:flex;gap:4px"><button class="btn btn-soft btn-xs" style="flex:1" data-act="deck-add" data-id="${c.i}">+ Add</button><button class="btn btn-soft btn-xs" data-act="detail" data-id="${c.i}" aria-label="See ${esc(c.n)} up close" title="See the card">${IC.zoom}</button></div></div>`;
     }).join("")}</div>
     ${list.length > shown.length ? `<button class="btn btn-soft btn-sm" style="align-self:center" data-act="p-more">Show more</button>` : ""}
   </section>`;
