@@ -1,5 +1,5 @@
 // Card data, prices and the small helpers every screen uses.
-import { IMG_BASE, TCG_SEARCH } from "./config.js";
+import { IMG_SOURCES, TCG_SEARCH } from "./config.js";
 
 export const DB = { cards: [], byId: {}, meta: {}, prices: { p: {} }, spoilers: [], types: [], ready: false };
 
@@ -54,17 +54,24 @@ export function frameVars(card) {
   return `--frame:${frame};--art:${art};--c1:${SOLID[card.co[0]] || "#2E3440"}`;
 }
 
-export function imgUrl(card, suffix = "") {
-  if (card.img) return card.img;
-  if (card.up) return "";
-  return `${IMG_BASE}${card.i}${suffix || ""}.png`;
+// Every place a picture might be, best first. Alt arts fall back to the regular art.
+export function imgUrls(card, suffix = "") {
+  if (card.img) return [card.img];
+  if (card.up) return [];
+  const sfx = suffix || "";
+  const list = IMG_SOURCES.map(f => f(card.i, sfx));
+  if (sfx) list.push(...IMG_SOURCES.map(f => f(card.i, "")));
+  return list;
 }
+export function imgUrl(card, suffix = "") { return imgUrls(card, suffix)[0] || ""; }
+// try the next picture source, or give up and show the drawn tile
+window.__imgNext = el => { const rest = (el.dataset.alt || "").split("|").filter(Boolean); if (!rest.length) return el.remove(); el.dataset.alt = rest.slice(1).join("|"); el.src = rest[0]; };
 
 // A card picture with a drawn fallback (cost, power, name) if the image can't load.
 export function tile(card, opts = {}) {
-  const src = opts.noImg ? "" : imgUrl(card, opts.suffix);
+  const urls = opts.noImg ? [] : imgUrls(card, opts.suffix); const src = urls[0] || "";
   const cost = card.c === "L" ? "" : `<span class="cost">${card.k ?? "–"}</span>`;
-  const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" onload="this.closest('.ctile').classList.add('has-img')" onerror="this.remove()">` : "";
+  const img = src ? `<img src="${esc(src)}" alt="" loading="lazy" onload="this.closest('.ctile').classList.add('has-img')" data-alt="${esc(urls.slice(1).join("|"))}" onerror="__imgNext(this)">` : "";
   return `<div class="ctile ${opts.cls || ""}" style="${frameVars(card)}${opts.style ? ";" + opts.style : ""}">
     <div class="in">${img}<div class="fb"><div style="display:flex;justify-content:space-between">${cost}<span class="pow">${card.p ?? ""}</span></div><div class="nm">${esc(card.n)}</div></div>
     ${card.tr && !opts.noTrig ? `<span class="trg">TRIGGER</span>` : ""}</div>${opts.extra || ""}</div>`;
