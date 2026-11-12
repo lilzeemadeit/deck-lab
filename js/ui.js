@@ -93,13 +93,13 @@ export function accountModal() {
   if (sync.user) {
     return `<div class="modal-back" data-act="modal-close"><div class="glass modal" data-stop="1" role="dialog" aria-label="Account">
       <h2 class="h2">Your account</h2><span class="muted" style="font-weight:700">${esc(sync.user.email)}</span>
-      <span style="font-size:14px">Decks, copies you own, your wishlist and your background save to this account and show up on any device you sign in on.</span>
+      <span style="font-size:14px">Decks, copies you own, your wishlist and your background save to this account and show up on any device you sign in on.</span><span class="muted" style="font-size:13px;font-weight:700">Signing out clears this browser. Everything comes back when you sign in again.</span>
       <div style="display:flex;gap:10px"><button class="btn btn-soft" data-act="signout">Sign out</button><button class="btn btn-blue" data-act="modal-close" style="margin-left:auto">Done</button></div></div></div>`;
   }
   const m = U.modal || {};
   return `<div class="modal-back" data-act="modal-close"><form class="glass modal" data-stop="1" data-submit="auth" role="dialog" aria-label="Sign in">
     <h2 class="h2">${m.mode === "up" ? "Create an account" : "Sign in"}</h2>
-    <span style="font-size:14px">So your decks, wishlist and background follow you to every device. Everything works without an account too — it just stays in this browser.</span>
+    <span style="font-size:14px">So your decks, wishlist and background follow you to every device. Everything works without an account too — it just stays in this browser.</span><span class="muted" style="font-size:13px;font-weight:700">Made something before signing in? It gets added to your account, not replaced.</span>
     <label class="sr" for="em">Email</label><input class="field" id="em" type="email" name="email" placeholder="Email" autocomplete="email" required>
     <label class="sr" for="pw">Password</label><input class="field" id="pw" type="password" name="password" placeholder="Password (6+ characters)" minlength="6" autocomplete="${m.mode === "up" ? "new-password" : "current-password"}" required>
     ${m.err ? `<div class="warn">${esc(m.err)}</div>` : ""}${m.msg ? `<div class="warn" style="background:rgba(214,245,228,0.9);border-color:#7CCB9F;color:#1F7A4C">${esc(m.msg)}</div>` : ""}

@@ -1,6 +1,6 @@
 // Deck Lab — router, events and start-up.
 import { DB, loadData, esc, CAT } from "./data.js";
-import { S, sync, commit, uid, onChange, initAuth, signIn, signUp, signOut, startSharing, stopSharing, fetchShared, uploadBackground, removeBackground } from "./store.js";
+import { S, sync, commit, uid, onChange, onNotice, initAuth, signIn, signUp, signOut, startSharing, stopSharing, fetchShared, uploadBackground, removeBackground } from "./store.js";
 import { U, ACT, INPUT, CHANGE, setRender, redraw, toast, header, bgPanel, accountModal, cardDetail, paintBackground, loadClouds } from "./ui.js";
 import { cardsView, currentDeck } from "./views/cards.js";
 import { builderView, deckTotal } from "./views/builder.js";
@@ -67,6 +67,7 @@ function render() {
 function soon() { cancelAnimationFrame(pending); pending = requestAnimationFrame(render); }
 setRender(soon);
 onChange(() => { paintBackground(); soon(); });
+onNotice(msg => toast(msg));
 
 // ---------------- events ----------------
 document.addEventListener("click", ev => {
@@ -112,7 +113,7 @@ Object.assign(ACT, {
   "account": () => { U.modal = { type: "account", mode: "in" }; redraw(); },
   "auth-mode": () => { U.modal = { type: "account", mode: U.modal && U.modal.mode === "up" ? "in" : "up" }; redraw(); },
   "modal-close": () => { U.modal = null; redraw(); },
-  "signout": async () => { await signOut(); U.modal = null; toast("Signed out — your stuff stays saved in your account"); },
+  "signout": async () => { await signOut(); U.modal = null; U.deckId = null; toast("Signed out — everything is saved in your account"); },
   "bg-toggle": () => { U.bgOpen = !U.bgOpen; redraw(); },
   "bg-close": () => { U.bgOpen = false; redraw(); },
   "bg-set": d => commit(s => { s.settings.bg = d.k; }),

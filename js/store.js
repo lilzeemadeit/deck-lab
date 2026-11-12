@@ -8,6 +8,7 @@ const KEY = "decklab:v1";
 export function blank() {
   return {
     v: 1, rev: 0, updated: 0,
+    owner: null,                                 // account this browser copy belongs to (null = not signed in)
     decks: [], gone: [],
     owned: {},                                   // card id -> copies you own (counts for every deck)
     wish: { items: [], lists: [], shareId: null },
@@ -20,6 +21,9 @@ export let S = load();
 export const sync = { user: null, status: "local", timer: null, lastHash: "" };
 const listeners = new Set();
 export function onChange(fn) { listeners.add(fn); }
+const notices = new Set();
+export function onNotice(fn) { notices.add(fn); }
+function notice(msg) { for (const f of notices) f(msg); }
 function emit() { for (const f of listeners) f(); }
 
 function load() {
@@ -57,7 +61,16 @@ export async function signUp(email, password) {
   const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
   if (error) throw error; return data;
 }
-export async function signOut() { await sb.auth.signOut(); }
+// Signing out clears this browser's copy so the next person on this computer starts fresh.
+// Everything stays in the account and comes back on the next sign-in.
+export async function signOut() {
+  clearTimeout(sync.timer);
+  if (sync.user && hash(S) !== sync.lastHash) await push();     // save anything not yet sent
+  await sb.auth.signOut();
+  S = blank(); saveLocal(); sync.lastHash = ""; sync.status = "local";
+  try { localStorage.removeItem("decklab:open"); } catch (e) {}
+  emit();
+}
 
 function hash(o) { const s = JSON.stringify(o); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return String(h); }
 
@@ -90,7 +103,7 @@ function merge(a, b) {
   out.owned = Object.assign({}, a.owned);
   for (const [k, v] of Object.entries(b.owned || {})) out.owned[k] = Math.max(out.owned[k] || 0, v);
   const byId = (xs, ys) => { const m = {}; for (const x of [...(xs || []), ...(ys || [])]) if (!m[x.id] || (x.updated || 0) > (m[x.id].updated || 0)) m[x.id] = x; return Object.values(m).filter(x => !out.gone.includes(x.id)); };
-  out.wish = { items: byId(a.wish?.items, b.wish?.items), lists: byId(a.wish?.lists, b.wish?.lists), shareId: newer.wish?.shareId || a.wish?.shareId || b.wish?.shareId || null };
+  out.wish = { items: dedupeWish(byId(a.wish?.items, b.wish?.items), out.gone), lists: byId(a.wish?.lists, b.wish?.lists), shareId: newer.wish?.shareId || a.wish?.shareId || b.wish?.shareId || null };
   out.buy = Object.assign({}, newer.buy);
   out.settings = Object.assign(blank().settings, newer.settings);
   out.settings.photos = [...new Set([...(a.settings?.photos || []), ...(b.settings?.photos || [])])];
@@ -99,19 +112,63 @@ function merge(a, b) {
   return out;
 }
 
+// The same card added on two devices (or before and after signing in) becomes one entry.
+function dedupeWish(items, gone) {
+  const keep = {};
+  for (const x of items) {
+    const k = x.card + "|" + (x.sfx || "") + "|" + (x.got ? 1 : 0); const y = keep[k];
+    if (!y) { keep[k] = x; continue; }
+    const [win, lose] = (x.updated || 0) > (y.updated || 0) ? [x, y] : [y, x];
+    keep[k] = Object.assign({}, win, { qty: Math.max(win.qty || 1, lose.qty || 1), added: Math.min(win.added || Infinity, lose.added || Infinity) });
+    gone.push(lose.id);
+  }
+  return Object.values(keep);
+}
+
+// Photos picked before signing in live only in this browser; move them to the account's storage.
+async function movePhotos() {
+  const local = (S.settings.photos || []).filter(u => u.startsWith("data:"));
+  for (const d of local) {
+    try {
+      const blob = await (await fetch(d)).blob();
+      const path = `${sync.user.id}/${uid()}.jpg`;
+      const { error } = await sb.storage.from("backgrounds").upload(path, blob, { contentType: "image/jpeg" });
+      if (error) continue;
+      const url = sb.storage.from("backgrounds").getPublicUrl(path).data.publicUrl;
+      commit(s => { s.settings.photos = s.settings.photos.map(u => u === d ? url : u); if (s.settings.photo === d) s.settings.photo = url; });
+    } catch (e) {}
+  }
+}
+
 export async function pull(first) {
   if (!sync.user) return;
   sync.status = "syncing"; emit();
   const { data, error } = await sb.from("user_state").select("data, updated_at").eq("user_id", sync.user.id).maybeSingle();
   if (error) { sync.status = "error"; emit(); return; }
   const remote = data && data.data && data.data.v === 1 ? data.data : null;
-  if (!remote) { sync.status = "saved"; S.updated = Date.now(); saveLocal(); await push(); return; }
+  const me = sync.user.id;
+  if (!remote) {   // brand-new account: guest work in this browser becomes its start (never another account's leftovers)
+    if (S.owner && S.owner !== me) S = blank();
+    S.owner = me; S.updated = Date.now(); saveLocal(); await push(); await movePhotos();
+    if (first && (S.decks.length || S.wish.items.length)) notice("Your decks and wishlist from this browser are saved to your new account");
+    return;
+  }
   if (hash(remote) === hash(S)) { sync.status = "saved"; sync.lastHash = hash(S); emit(); return; }
   const localEmpty = !S.decks.length && !S.wish.items.length && !Object.keys(S.owned).length;
-  S = localEmpty ? Object.assign(blank(), remote) : merge(S, remote);
+  const otherAccount = S.owner && S.owner !== me;          // leftovers from someone else's account: never mix them in
+  const guest = !S.owner && !localEmpty;                     // made before signing in: add to the account
+  const newDecks = guest ? S.decks.filter(d => !(remote.decks || []).some(r => r.id === d.id)).length : 0;
+  const newWish = guest ? S.wish.items.filter(x => !(remote.wish?.items || []).some(r => r.card === x.card && !r.got)).length : 0;
+  S = localEmpty || otherAccount ? Object.assign(blank(), remote) : merge(S, remote);
+  S.owner = me;
   saveLocal(); sync.lastHash = hash(remote);
   emit();
   await push();
+  if (guest) {
+    await movePhotos();
+    const parts = [newDecks && `${newDecks} deck${newDecks > 1 ? "s" : ""}`, newWish && `${newWish} wishlist card${newWish > 1 ? "s" : ""}`].filter(Boolean);
+    if (parts.length) notice(`Added ${parts.join(" and ")} from this browser to your account`);
+  }
 }
 
 // ---------- shared wishlist ----------
