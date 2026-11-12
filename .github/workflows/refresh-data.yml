@@ -1,0 +1,38 @@
+name: Refresh cards and prices
+
+on:
+  schedule:
+    - cron: "47 20 * * *"   # daily, after TCGCSV's ~20:00 UTC update
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get the English card list (punk-records)
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/buhbbl/punk-records.git /tmp/pr
+          cd /tmp/pr && git sparse-checkout set english
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build cards.json
+        run: python tools/build_data.py /tmp/pr/english data/cards.json
+
+      - name: Build prices.json (TCGCSV, once a day)
+        run: python tools/build_prices.py data/prices.json || echo "prices failed; keeping yesterday's file"
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name "deck-lab-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/cards.json data/prices.json
+          git diff --cached --quiet || git commit -m "Nightly card + price refresh"
+          git push

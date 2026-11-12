@@ -1,0 +1,4 @@
+{
+  "note": "Revealed but unreleased cards. Add entries in the same shape as cards.json (i, n, c, co, k, p, ct, a, t, e, tr, r, s, v, g). Set \"img\" to an image URL if you have one. Remove them once the set is in cards.json.",
+  "cards": []
+}
